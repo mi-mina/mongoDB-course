@@ -13,6 +13,7 @@ function errorHandler(err, req, res, next) {
     res.status(500).render('error_template', { error: err });
 }
 
+//Everything with a ':' in a route is a variable
 app.get('/:name', function(req, res, next) {
     var name = req.params.name;
     var getvar1 = req.query.getvar1;
