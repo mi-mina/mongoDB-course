@@ -15,6 +15,7 @@ function errorHandler(err, req, res, next) {
 
 //Everything with a ':' in a route is a variable
 app.get('/:name', function(req, res, next) {
+    //We use the req.params object to get the params
     var name = req.params.name;
     var getvar1 = req.query.getvar1;
     var getvar2 = req.query.getvar2;
