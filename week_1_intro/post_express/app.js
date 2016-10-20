@@ -7,11 +7,11 @@ var express = require('express'),
 app.engine('html', engines.nunjucks);
 app.set('view engine', 'html');
 app.set('views', __dirname + '/views');
-app.use(bodyParser.urlencoded({ extended: true })); 
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Handler for internal server errors
 function errorHandler(err, req, res, next) {
-    
+
     console.error(err.message); //No recibo nada por aquí
     console.error(err.stack); //No recibo nada por aquí
     console.log(err); //Por aquí sí. Quizá lo anterior ya no funciona en Express 4?
@@ -26,8 +26,8 @@ app.post('/favorite_fruit', function(req, res, next) {
     //We ask for the property 'fruta' because this is the value of the name attribute  of the input (in the template)
     //This is only available if we registered the bodyParser middleware
     var favorite = req.body.fruta;
-    //console.log(req.body);  
-    
+    //console.log(req.body);
+
     if (typeof favorite == 'undefined') {
         next('Please choose a fruit!');
     }

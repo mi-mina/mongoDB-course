@@ -24,14 +24,10 @@ MongoClient.connect('mongodb://localhost:27017/video', function(err, db) {
     app.use(function(req, res){
         res.sendStatus(404);
     });
-    
+
     var server = app.listen(3000, function() {
         var port = server.address().port;
         console.log('Express server listening on port %s.', port);
     });
 
 });
-
-
-
-
