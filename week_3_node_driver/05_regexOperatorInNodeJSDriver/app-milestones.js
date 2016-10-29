@@ -1,5 +1,5 @@
 var MongoClient = require('mongodb').MongoClient,
-    commandLineArgs = require('command-line-args'), 
+    commandLineArgs = require('command-line-args'),
     assert = require('assert');
 
 
@@ -10,13 +10,13 @@ MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
 
     assert.equal(err, null);
     console.log("Successfully connected to MongoDB.");
-    
+
     var query = queryDocument(options);
     var projection = projectionDocument(options);
 
     var cursor = db.collection('companies').find(query);
     cursor.project(projection);
-    
+
     var numMatches = 0;
 
     cursor.forEach(
@@ -38,7 +38,7 @@ MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
 function queryDocument(options) {
 
     console.log(options);
-    
+
     var query = {};
 
     if ("overview" in options) {
@@ -46,12 +46,12 @@ function queryDocument(options) {
     }
 
     if ("milestones" in options) {
-        query["milestones.source_description"] =
+        query["milestones.source_description"] = //Note how to access the source_description
             {"$regex": options.milestones, "$options": "i"};
     }
 
     return query;
-    
+
 }
 
 
@@ -81,7 +81,7 @@ function commandLineOptions() {
         { name: "overview", alias: "o", type: String },
         { name: "milestones", alias: "m", type: String }
     ]);
-    
+
     var options = cli.parse()
     if (Object.keys(options).length < 1) {
         console.log(cli.getUsage({
@@ -92,7 +92,5 @@ function commandLineOptions() {
     }
 
     return options;
-    
+
 }
-
-

@@ -31,7 +31,9 @@ To open a file with TextEdit
 
 ### Running MongoDB
 
-First we need to run `mongod` in a shell to start the server in port 27017. (To close the server `Ctrl + C`).
+First we need to run `mongod` in a shell to start the server in port 27017. (To close the server `Ctrl + C`).  
+27017 is the port by default. If we want to start the mongo server in other port, we type:
+`mongod --port 27018` (the port number we want to use)
 
 Then we open a new terminal and run `mongo` to open the mongo shell. Typing `help` shows us a list of commands available.
 
@@ -58,6 +60,11 @@ For example: `npm install mongodb` to install the mongoDB driver.
 
 If there is a package.json file, just type `npm install`
 
+### Database dump.
+Open a terminal window and navigate to the directory so that the dump directory is directly beneath you. Dump files are binary files (they're not human-readable).
+
+`mongorestore dump`
+
 # Week 2. CRUD operations
 
 #### Creating documents
@@ -67,10 +74,23 @@ Principal commands for creating documents:
 - Update commands can result in document being inserted. ('Upserts')
 
 `db.(collection name).insertOne({...})` to insert a new document.
+
 `db.(collection name).insertMany([{...}, {...}, {...}])` to insert many documents.
 insertMany inserts documents ordered by default. If it founds an error (i.e. a doubled \_id), it stops at that point.
+
 `db.(collection name).insertMany([{...}, {...}, {...}], { "ordered": false})` to insert many documents.
 
 
 
 # Week 3. Node.js driver
+
+![schema](https://raw.githubusercontent.com/mi-mina/mongoDB-course/master/week_3_node_driver/Screen%20Shot%202016-10-29%20at%2011.34.32.png)
+
+[Crunchbase. Startups database](https://www.crunchbase.com/#/home/index)
+
+`mongoimport -d crunchbase -c companies companies.json`
+Allows to import human-readable json files. `-d`for the database name and `-c`for the collection name. Then the path to the json file.
+
+The driver provides one set of classes and methods we use to interact with mongoDB and the mongo shell provides its own API. With respect to CRUD, MongoDB 3.2 shell and drivers adhere to the same CRUD spec. They support the same set of CRUD methods (findOne, insertMany, etc)
+
+Documents in a MongoDB database collections doesn't need to have the exact same fields. 

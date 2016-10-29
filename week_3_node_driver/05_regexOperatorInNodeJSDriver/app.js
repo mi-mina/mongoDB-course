@@ -1,5 +1,5 @@
 var MongoClient = require('mongodb').MongoClient,
-    commandLineArgs = require('command-line-args'), 
+    commandLineArgs = require('command-line-args'),
     assert = require('assert');
 
 
@@ -10,13 +10,13 @@ MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
 
     assert.equal(err, null);
     console.log("Successfully connected to MongoDB.");
-    
+
     var query = queryDocument(options);
     var projection = projectionDocument(options);
 
     var cursor = db.collection('companies').find(query);
     cursor.project(projection);
-    
+
     var numMatches = 0;
 
     cursor.forEach(
@@ -38,15 +38,18 @@ MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
 function queryDocument(options) {
 
     console.log(options);
-    
+
     var query = {};
 
     if ("overview" in options) {
         query.overview = {"$regex": options.overview, "$options": "i"};
+        // This is the sintax for the $regex. pattern + options.
+        // In this case we're getting the pattern through the command line options
+        // and we want it to be case insensitive, so we use 'i' as an option for the regex.
     }
-    
+
     return query;
-    
+
 }
 
 
@@ -68,8 +71,9 @@ function commandLineOptions() {
     var cli = commandLineArgs([
         { name: "overview", alias: "o", type: String }
     ]);
-    
-    var options = cli.parse()
+
+    var options = cli.parse();
+
     if (Object.keys(options).length < 1) {
         console.log(cli.getUsage({
             title: "Usage",
@@ -79,7 +83,5 @@ function commandLineOptions() {
     }
 
     return options;
-    
+
 }
-
-

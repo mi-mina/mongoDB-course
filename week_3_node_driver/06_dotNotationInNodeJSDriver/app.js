@@ -1,5 +1,5 @@
 var MongoClient = require('mongodb').MongoClient,
-    commandLineArgs = require('command-line-args'), 
+    commandLineArgs = require('command-line-args'),
     assert = require('assert');
 
 
@@ -10,23 +10,18 @@ MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
 
     assert.equal(err, null);
     console.log("Successfully connected to MongoDB.");
-    
+
     var query = queryDocument(options);
     var projection = {"_id": 0, "name": 1, "founded_year": 1,
-                      "number_of_employees": 1};
+                      "number_of_employees": 1, "ipo.valuation_amount": 1};
 
-    var cursor = db.collection('companies').find(query);
-    cursor.project(projection);
-    //cursor.sort({founded_year: -1});
-    cursor.sort([["founded_year", 1], ["number_of_employees", -1]]);
-        
+    var cursor = db.collection('companies').find(query, projection);
     var numMatches = 0;
 
     cursor.forEach(
         function(doc) {
             numMatches = numMatches + 1;
-            console.log(doc.name + "\n\tfounded " + doc.founded_year +
-                        "\n\t" + doc.number_of_employees + " employees"); 
+            console.log( doc );
         },
         function(err) {
             assert.equal(err, null);
@@ -41,6 +36,8 @@ MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
 
 function queryDocument(options) {
 
+    console.log(options);
+
     var query = {
         "founded_year": {
             "$gte": options.firstYear,
@@ -51,9 +48,21 @@ function queryDocument(options) {
     if ("employees" in options) {
         query.number_of_employees = { "$gte": options.employees };
     }
-    
+
+    if ("ipo" in options) {
+        if (options.ipo == "yes") {
+            query["ipo.valuation_amount"] = {"$exists": true, "$ne": null};
+            // it exists and is not equal to null
+        } else if (options.ipo == "no") {
+            query["ipo.valuation_amount"] = null;
+            // ipo.valuation_amount can be equal to null or simply not exist.
+        }
+    }
+
+    console.log(query);
+
     return query;
-    
+
 }
 
 
@@ -62,9 +71,10 @@ function commandLineOptions() {
     var cli = commandLineArgs([
         { name: "firstYear", alias: "f", type: Number },
         { name: "lastYear", alias: "l", type: Number },
-        { name: "employees", alias: "e", type: Number }
+        { name: "employees", alias: "e", type: Number },
+        { name: "ipo", alias: "i", type: String }
     ]);
-    
+
     var options = cli.parse()
     if ( !(("firstYear" in options) && ("lastYear" in options))) {
         console.log(cli.getUsage({
@@ -75,7 +85,5 @@ function commandLineOptions() {
     }
 
     return options;
-    
+
 }
-
-
