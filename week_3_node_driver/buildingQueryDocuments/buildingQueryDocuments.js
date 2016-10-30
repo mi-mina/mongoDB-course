@@ -2,10 +2,10 @@
 
 Homework Description:
 
-This application depends on the companies.json dataset distributed as a handout with the 
-"find() and Cursors in the Node.js Driver" lesson. You must first import that collection. Please ensure 
+This application depends on the companies.json dataset distributed as a handout with the
+"find() and Cursors in the Node.js Driver" lesson. You must first import that collection. Please ensure
 you are working with an unmodified version of the collection before beginning this
-exercise. 
+exercise.
 
 To import a fresh version of the companies.json data, please type the following:
 
@@ -23,8 +23,8 @@ The code below is complete with the exception of the queryDocument() function.
 As in the lessons, the queryDocument() function builds an object that will be passed to find()
 to match a set of documents from the crunchbase.companies collection.
 
-For this assignment, please complete the queryDocument() function as described in the TODO 
-comments you will find in that function. 
+For this assignment, please complete the queryDocument() function as described in the TODO
+comments you will find in that function.
 
 
 Once complete, run this application by typing:
@@ -32,14 +32,14 @@ Once complete, run this application by typing:
 node buildingQueryDocuments.js
 
 
-When you are convinced you have completed the application correctly, please enter the 
+When you are convinced you have completed the application correctly, please enter the
 average number of employees per company reported in the output. Enter only the number reported.
 It should be three numeric digits.
 
-As a check that you have completed the exercise correctly, the total number of unique companies 
+As a check that you have completed the exercise correctly, the total number of unique companies
 reported by the application should equal 42.
 
-If the grading system does not accept the first solution you enter, please do not make further 
+If the grading system does not accept the first solution you enter, please do not make further
 attempts to have your solution graded without seeking some help in the discussion forum.
 
 */
@@ -75,14 +75,14 @@ for (var i=0; i<allOptions.length; i++) {
 function queryMongoDB(query, queryNum) {
 
     MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
-        
+
         assert.equal(err, null);
         console.log("Successfully connected to MongoDB for query: " + queryNum);
-        
+
         var cursor = db.collection('companies').find(query);
-        
+
         var numMatches = 0;
-        
+
         cursor.forEach(
             function(doc) {
                 numMatches = numMatches + 1;
@@ -100,26 +100,30 @@ function queryMongoDB(query, queryNum) {
                 return db.close();
             }
         );
-        
+
     });
-    
+
 }
 
 
 function queryDocument(options) {
 
     console.log(options);
-    
+
     var query = {
-        "tag_list": /* TODO: Complete this statement to match the regular expression "social-networking" */        
+        "tag_list":  {'$regex': 'social-networking', '$options': 'i'}/* TODO: Complete this statement to match the regular expression "social-networking" */
     };
 
     if (("firstYear" in options) && ("lastYear" in options)) {
-        /* 
-           TODO: Write one line of code to ensure that if both firstYear and lastYear 
-           appear in the options object, we will match documents that have a value for 
-           the "founded_year" field of companies documents in the correct range. 
+        /*
+           TODO: Write one line of code to ensure that if both firstYear and lastYear
+           appear in the options object, we will match documents that have a value for
+           the "founded_year" field of companies documents in the correct range.
         */
+        query.founded_year = {
+          '$gte': options.firstYear,
+          '$lte': options.lastYear
+        }
     } else if ("firstYear" in options) {
         query.founded_year = { "$gte": options.firstYear };
     } else if ("lastYear" in options) {
@@ -127,16 +131,17 @@ function queryDocument(options) {
     }
 
     if ("city" in options) {
-        /* 
-           TODO: Write one line of code to ensure that we do an equality match on the 
-           "offices.city" field. The "offices" field stores an array in which each element 
+        /*
+           TODO: Write one line of code to ensure that we do an equality match on the
+           "offices.city" field. The "offices" field stores an array in which each element
            is a nested document containing fields that describe a corporate office. Each office
-           document contains a "city" field. A company may have multiple corporate offices. 
+           document contains a "city" field. A company may have multiple corporate offices.
         */
+        query['offices.city']=options.city;
     }
-        
+
     return query;
-    
+
 }
 
 
@@ -152,12 +157,3 @@ function report(options) {
     console.log("Total unique companies: " + companiesList.length);
     console.log("Average number of employees per company: " + Math.floor(totalEmployees / companiesList.length));
 }
-
-
-
-
-
-
-
-
-

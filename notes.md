@@ -91,6 +91,8 @@ insertMany inserts documents ordered by default. If it founds an error (i.e. a d
 `mongoimport -d crunchbase -c companies companies.json`
 Allows to import human-readable json files. `-d`for the database name and `-c`for the collection name. Then the path to the json file.
 
+`mongoimport --drop -d crunchbase -c companies companies.json` does the same but it drops the collection before, in case that it exists.
+
 The driver provides one set of classes and methods we use to interact with mongoDB and the mongo shell provides its own API. With respect to CRUD, MongoDB 3.2 shell and drivers adhere to the same CRUD spec. They support the same set of CRUD methods (findOne, insertMany, etc)
 
-Documents in a MongoDB database collections doesn't need to have the exact same fields. 
+Documents in a MongoDB database collections doesn't need to have the exact same fields.

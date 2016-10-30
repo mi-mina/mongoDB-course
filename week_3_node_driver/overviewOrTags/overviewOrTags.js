@@ -2,14 +2,14 @@
 
 Homework Description:
 
-In completing this exercise, you will find the following lesson helpful as a refresher on the $or 
+In completing this exercise, you will find the following lesson helpful as a refresher on the $or
 operator.
 https://university.mongodb.com/courses/MongoDB/M101JS/2016_January/courseware/Week_2_CRUD/56955ef3d8ca393adc3abe5c
 
-This application depends on the companies.json dataset distributed as a handout with the 
-"find() and Cursors in the Node.js Driver" lesson. You must first import that collection. Please ensure 
+This application depends on the companies.json dataset distributed as a handout with the
+"find() and Cursors in the Node.js Driver" lesson. You must first import that collection. Please ensure
 you are working with an unmodified version of the collection before beginning this
-exercise. 
+exercise.
 
 To import a fresh version of the companies.json data, please type the following:
 
@@ -27,8 +27,8 @@ The code below is complete with the exception of the queryDocument() function.
 As in the lessons, the queryDocument() function builds an object that will be passed to find()
 to match a set of documents from the crunchbase.companies collection.
 
-For this assignment, please complete the queryDocument() function as described in the TODO 
-comments you will find in that function. 
+For this assignment, please complete the queryDocument() function as described in the TODO
+comments you will find in that function.
 
 
 Once complete, run this application by typing:
@@ -36,14 +36,14 @@ Once complete, run this application by typing:
 node overviewOrTags.js
 
 
-When you are convinced you have completed the application correctly, please enter the 
+When you are convinced you have completed the application correctly, please enter the
 average number of employees per company reported in the output. Enter only the number reported.
 It should be two numeric digits.
 
-As a check that you have completed the exercise correctly, the total number of unique companies 
+As a check that you have completed the exercise correctly, the total number of unique companies
 reported by the application should equal 194.
 
-If the grading system does not accept the first solution you enter, please do not make further 
+If the grading system does not accept the first solution you enter, please do not make further
 attempts to have your solution graded without seeking some help in the discussion forum.
 
 
@@ -75,14 +75,14 @@ for (var i=0; i<allOptions.length; i++) {
 function queryMongoDB(query, queryNum) {
 
     MongoClient.connect('mongodb://localhost:27017/crunchbase', function(err, db) {
-        
+
         assert.equal(err, null);
         console.log("Successfully connected to MongoDB for query: " + queryNum);
-        
+
         var cursor = db.collection('companies').find(query);
-        
+
         var numMatches = 0;
-        
+
         cursor.forEach(
             function(doc) {
                 numMatches = numMatches + 1;
@@ -100,9 +100,9 @@ function queryMongoDB(query, queryNum) {
                 return db.close();
             }
         );
-        
+
     });
-    
+
 }
 
 
@@ -112,8 +112,8 @@ function queryDocument(options) {
 
     if ("overview" in options) {
         /*
-           TODO: Write an assignment statement to ensure that if "overview" appears in the 
-           options object, we will match documents that have the value of options.overview 
+           TODO: Write an assignment statement to ensure that if "overview" appears in the
+           options object, we will match documents that have the value of options.overview
            in either the "overview" field or "tag_list" field of companies documents.
 
            You will need to use the $or operator to do this. As a hint, "$or" should be the
@@ -125,6 +125,8 @@ function queryDocument(options) {
            I urge you to test your query in the Mongo shell first and adapt it to fit
            the syntax for constructing query documents in this application.
         */
+        query['$or']= [{'overview': {'$regex': options.overview, '$options': 'i'}},
+                       {'tag_list': {'$regex': options.overview, '$options': 'i'}}];
     }
 
     if ("milestones" in options) {
@@ -133,7 +135,7 @@ function queryDocument(options) {
     }
 
     return query;
-    
+
 }
 
 
@@ -149,8 +151,3 @@ function report(options) {
     console.log("Total unique companies: " + companiesList.length);
     console.log("Average number of employees per company: " + Math.floor(totalEmployees / companiesList.length));
 }
-
-
-
-
-
