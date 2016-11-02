@@ -96,3 +96,17 @@ Allows to import human-readable json files. `-d`for the database name and `-c`fo
 The driver provides one set of classes and methods we use to interact with mongoDB and the mongo shell provides its own API. With respect to CRUD, MongoDB 3.2 shell and drivers adhere to the same CRUD spec. They support the same set of CRUD methods (findOne, insertMany, etc)
 
 Documents in a MongoDB database collections doesn't need to have the exact same fields.
+
+# Week 4. Mongo Schemas
+
+In relational databases there is a best way to design your schema which is to keep it in the third normal form.
+In mongo is more important to keep the data in a way that's conducive to the application using the data.
+The data within mongo is organized to specifically suit the application data access patterns.
+In relational databases you try to keep the data in a way that's agnostic to the application.
+
+- Mongo supports Rich Documents. It's not just tabular data. You can store an array of items...
+- Allows us to pre join/embed data
+- Mongo doesn't support joins. You have to join in the application itself. You have to think ahead of time what data you want to use together with other data, and if it's possible, you might want to embed it directly.
+- There are no constrains.
+- Mongo don't support transactions, but it support atomic operations.
+- There is no declared schema, but
