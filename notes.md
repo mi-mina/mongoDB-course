@@ -192,3 +192,14 @@ With the sparse option it's possible though, because the documents with the
 missing key won't be included in the index.
 
 `db.employees.createIndex({cell: 1}, {unique:true, sparse: true})`
+
+A sparse index will be used in a find() but not in a sort() because mongo knows
+that it has missing documents.
+
+#### Background/Foreground
+
+Indexes can be created in the Foreground or in the Background.
+In the Foreground are fast but the database will be blocked.
+In the Background are slower but the database doesn't block.
+
+`db.students.createIndex({scores.score: 1}, {foreground: true})`
