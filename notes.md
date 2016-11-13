@@ -109,4 +109,86 @@ In relational databases you try to keep the data in a way that's agnostic to the
 - Mongo doesn't support joins. You have to join in the application itself. You have to think ahead of time what data you want to use together with other data, and if it's possible, you might want to embed it directly.
 - There are no constrains.
 - Mongo don't support transactions, but it support atomic operations.
-- There is no declared schema, but
+- There is no declared schema
+
+
+# Week 5. Indexes.
+
+To create an Index  
+`db.collectionname.createIndex({keyyouwanttoindexby: 1})`
+
+Ex: `db.students.createIndex({student_id: 1, class_id -1})`
+
+1 is to ascend index
+-1 to descend index
+
+To know which indexes are there  
+`db.collectionname.getIndexes()`
+
+To delete an index
+`db.collectionname.dropIndex({indexname: 1})`
+
+Ex: `db.students.dropIndex({"student_id" : 1})`
+
+We have to give the same index we gave when we created it.
+
+#### Multikey Indexes
+When we have an array as a value of one of the keys we want to index by.
+Restrictions: You can't have a compound index where both of them are arrays.
+
+#### Dot Notation and Multikey
+```
+{
+	"_id" : ObjectId("5828399e81dd97f22908780f"),
+	"student_id" : 2968,
+	"scores" : [
+		{
+			"type" : "exam",
+			"score" : 35.54178258373225
+		},
+		{
+			"type" : "quiz",
+			"score" : 99.00037083179335
+		},
+		{
+			"type" : "homework",
+			"score" : 60.97754160761348
+		},
+		{
+			"type" : "homework",
+			"score" : 47.47333988699136
+		}
+	],
+	"class_id" : 97
+}
+```
+In this type of document, we can create this kind of index:
+
+`db.students.createIndex({'scores.score': 1})`
+
+If we want to find a document where at least one score is greater than 99 ->
+
+`db.students.find({'scores.score': {'$gt' : 99}}).pretty()`
+
+But what if we want to find a document where the exam is above 99? We need to do
+it like this:
+
+`db.student.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99}}}})`
+
+#### Unique Indexes
+Doesn't allow duplicate values for the same key. To create one:
+
+`db.students.createIndex({name: 1}, {unique: true})`
+
+#### Sparse Indexes
+When the index key in missing for some of the documents.
+
+For example, you want to create a unique index on the key 'cell_phone' of your
+database of employees because every employee should have a different cell phone
+number. But there might be some employees without cell phone.
+You can't create a unique index because for all documents with no cell key,
+a cell key will be assigned to null in the index.
+With the sparse option it's possible though, because the documents with the
+missing key won't be included in the index.
+
+`db.employees.createIndex({cell: 1}, {unique:true, sparse: true})`
