@@ -373,4 +373,4 @@ In mongo, you choose a shard key, it could be a compound key.
 For example, student_id. Mongos will send the request to the right mongo instance.
 
 - **An insert must include the entire shard key**
-- **For an insert, uodate or delete, if you don't include the shard key, mongos will broadcast the request to all the different shards, and you will get a worst performance. **
+- **For an insert, uodate or delete, if you don't include the shard key, mongos will broadcast the request to all the different shards, and you will get a worst performance.**
