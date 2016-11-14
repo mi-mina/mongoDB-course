@@ -175,6 +175,8 @@ it like this:
 
 `db.student.find({'scores': {$elemMatch: {type: 'exam', score: {$gt: 99}}}})`
 
+If we want to sort on multiple fields, the direction of each field on which we want to sort in a query must be the same as the direction of each field specified in the index. So if we want to sort using something like db.collection.find( { a: 75 } ).sort( { a: 1, b: -1 } ), we must specify the index using the same directions, e.g., db.collection.createIndex( { a: 1, b: -1 } ).
+
 #### Unique Indexes
 Doesn't allow duplicate values for the same key. To create one:
 
@@ -203,3 +205,172 @@ In the Foreground are fast but the database will be blocked.
 In the Background are slower but the database doesn't block.
 
 `db.students.createIndex({scores.score: 1}, {foreground: true})`
+
+#### Explain
+Explain is used to find out what the database is doing when you run a query.
+It doesn't return back the data, just show what it would do.
+
+`db.foo.explain()` returns an explainable object.
+You can run a lot of methods on the explainable object (but insert), including help, which returns what methods you can apply.
+
+Ex: `db.foo.explain().find()`
+
+Explain can run in different modes with increasing levels of verbosity:
+- queryPlanner (default). Doesn't return the data
+- executionStats
+- allPlansExecution
+
+Ex: `db.foo.explain({'executionStats'}).find()`
+
+#### Covered query
+A covered query is a query where the query itself can be satisfied entirely with an index and hence, zero documents need to be inspected to satisfy the query.
+It only works in the case that we explicitly project the keys in the index
+
+Examples.
+We have a foo collection with an index on the keys j and k.
+This query is not covered. Although we are only looking for keys in the index, the return documents will have information about the \_id key, and the \_id key is not indexed, so it will have to scan the documents.   
+`db.foo.explain('executionStats').find({j:1, k:1})`
+
+To avoid that, we can explicitly exclude the \_id key with a projection:
+`db.foo.explain('executionStats').find({j:1, k:1}, {_id:0, j:1, k:1})`
+
+If we forget to explicitly ask for k and j in the projection, it won't be a covered query either, because mongo is not sure that they aren't other keys like m or n...
+
+#### stats
+Indexes are stored in memory, not in disk.
+To know how big they are:  
+`db.foo.stats()`
+
+#### Index cardinality
+Index cardinality: how many index points are there for each different type of index that Mongo supports.
+- Regular -> same index points as number of documents
+- Sparse -> less or equal index points as number of documents
+- Multikey -> more index points as number of documents
+
+#### Geospatial Indexes
+They allow you find places based on location.
+
+##### 2D
+In your documents you have to have a key called like 'location' or something similar where to store an x value and a y value. For example:
+```
+{
+  '_id': ObjectId(12231231231231243)
+  'name': "Ruby's"
+  'type': 'barber'
+  'location': [40, 74]
+}
+```
+
+To create an index based on location:  
+`db.stores.createIndex({location: 2d, type: 1})`  
+
+`type: 1` means ascending
+
+For the query we need to use the special operator $near:  
+`db.stores.find({location: {$near: [50, 50]}})`
+'Find me every document whose location is near 50, 50'
+
+If we want to limit the number of results:
+`db.stores.find({location: {$near: [50, 50]}}).limit(10)`
+
+##### Spherical
+google maps shows the latitude and the longitude of a place (in that order).  
+Mongo needs the values in the opposite order, first latitude and then longitude.
+
+MongoDB uses geojson, but only support point and polygons.
+```
+{
+  '_id': ObjectId(12231231231231243)
+  'name': "Ruby's"
+  'type': 'barber'
+  'location': {
+      'type': 'point',
+      'coordinates': [40, 74]
+    }
+}
+```
+location it's not a reserved world (you can use whatever you want), but type, point, coordinates are (from the geojson specification).
+
+To create a spherical index:   
+`db.places.createIndex({location: 2dsphere})`
+
+To make a find query: (coordinates: longitude, latitude and distance in meters)
+```
+db.places.find({
+  location: {
+    $near: {
+      $geometry: {
+        type: 'Point',
+        coordinates: [50, 50]},
+      $maxDistance: 2000
+    }  
+  }
+}).pretty()`
+```
+
+#### Full text search index
+Allows to do queries in texts.
+
+To create an index of the text type:  
+`db.sentences.createIndex({words: 'text'})`
+
+To make a find query:    
+`db.sentences.find({$text: {$search: 'dog'}})`
+
+To find the best match:  
+`db.sentences.find({$text: {$search: 'dog tree obsidian'}}, {$score: {$meta: 'textScore'}}).sort({$score: {$meta: 'textScore'}})`
+
+#### Efficiency
+The primary factor that determines how efficiently an index can be used is the selectivity of the index.
+
+Rules of thumb you should keep in mind when building compound indexes:  
+- Equality fields before range fields
+- Sort fields before range fields
+- Equality fields before sort fields
+
+#### Logging
+When the queries are slow, they're logged in the mongod shell automatically.
+
+#### Profiler
+It's a more sophisticated facility. It will write entries in system.profile.
+There are 3 levels:  
+- Level 0. Default. Profiler off.
+- Level 1. Will log slow queries.
+- Level 3. Will log all queries. It's more like a general debugging feature.
+
+Start the mongo server like this:  
+`mongod --profile 1 --slowms 2`
+
+To see the log:  
+`db.system.profile.find().pretty()`
+
+We can do queries in this document:  
+`db.system.profile.find({ns: 'school.students'}).sort({ts: 1}).pretty()`
+
+To ask about or set the profiler level and ask about the status:  
+`db.getProfilingLevel()`  
+`db.setProfilingLevel(1, 4)`   
+`db.getProfilingStatus()`  
+
+#### Mongo top
+High level view of where Mongo is spending time.
+
+`mongotop 3`  
+runs mongotop every 3 seconds
+
+#### mongostat
+Similar to the iostat command in Unix
+It will sample the database in one second increments and give you a bunch of information about what is going on in that second, like number of inserts, queries, updates, deletes...
+
+# Sharding
+Sharding is a technique for splitting up a large collection amongst multiple servers.
+
+You can have multiple mongo servers. In front of them you have a mongos (a router). The application talks to mongos, which then talks to the various servers.
+
+It's different of a replica set. In a replica set you store the same data. You keep the data in synch across several different instances so that if one of them goes down, you won't lose your data. But one replica set is seen as a shard.
+
+In mongo, you choose a shard key, it could be a compound key.
+For example, student_id. Mongos will send the request to the right mongo instance.
+
+- **An insert must include the entire shard key**
+- **For an insert, uodate or delete, if you don't include the shard key, mongos will broadcast the request to all the different shards, and you will get a worst performance. **
