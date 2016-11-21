@@ -374,3 +374,197 @@ For example, student_id. Mongos will send the request to the right mongo instanc
 
 - **An insert must include the entire shard key**
 - **For an insert, uodate or delete, if you don't include the shard key, mongos will broadcast the request to all the different shards, and you will get a worst performance.**
+
+# Week 6. Aggregation Framework
+
+[Aggregation pipeline quick reference](https://docs.mongodb.com/v3.2/meta/aggregation-quick-reference/)
+
+Analytic tools. It's based on the concept of a pipeline.
+Stream of documents.
+Pipelines work with a MongoDB collection. They're composed of stages each of which does a different data processing task on its input and produces documents as output to be passed to the next stage. In some cases is necessary to introduce the same type of stage, multiple times, within an individual pipeline.
+
+#### Familiar operations
+- match (find)
+- project
+- sort
+- skip
+- limit
+
+We pass a pipeline to the aggregate method. A pipeline is an array with document as elements, and each document must stipulate a particular stage operator.
+```
+db.companies.aggregate([
+  {$match: {founded_year: 2004}},
+  {$sort: {name: 1}},
+  {$limit: 5},
+  {$project: {
+    _id:0,
+    name:1,
+    }
+  }
+])
+```
+Always think about the efficiency of the pipeline. Be careful about the order.
+$match should be on of the first stages.
+
+#### Expressions
+There are expressions supported in the aggregation framework
+
+- booleans: $and, $or, $not
+- set expressions. They allow us to treat arrays as sets and perform operations on them: $setEquals, $setIntersection, $setUnion, $setDifference, ...
+- comparison operators: $eq, $gt, $gte, $lt, $lte...
+- arithmetic expressions: $abs, $add, $ceil, $divide, $mod, $multiply
+- String expressions
+- Text search expressions
+- Array expressions
+- Variable expressions
+- Date expressions
+- Condicional expressions
+- Accumulators
+
+#### Reshaping documents. $project
+
+##### Promoting nested fields
+
+```
+db.companies.aggregate([
+    { $match: {"funding_rounds.investments.financial_org.permalink": "greylock" } },
+    { $project: {
+        _id: 0,
+        name: 1,
+        ipo: "$ipo.pub_year",
+        valuation: "$ipo.valuation_amount",
+        funders: "$funding_rounds.investments.financial_org.permalink"
+    } }
+]).pretty()
+```
+The `$` means 'give me the value'. (The nested value in this case)
+
+##### Create a new nested document
+
+```
+db.companies.aggregate([
+    { $match: {"funding_rounds.investments.financial_org.permalink": "greylock" } },
+    { $project: {
+        _id: 0,
+        name: 1,
+        founded: {
+            year: "$founded_year",
+            month: "$founded_month",
+            day: "$founded_day"
+        }
+    } }
+]).pretty()
+```
+#### $unwind
+
+Unwind allows as to take documents as inputs that have an array valued field, and produce output documents such that there's one output document for each element in the array
+```
+db.companies.aggregate([
+    { $match: {"funding_rounds.investments.financial_org.permalink": "greylock" } },
+    { $unwind: "$funding_rounds" },
+    { $project: {
+        _id: 0,
+        name: 1,
+        amount: "$funding_rounds.raised_amount",
+        year: "$funding_rounds.funded_year"
+    } }
+])
+```
+
+##### Homework week 6
+
+###### 6.1
+```
+db.companies.aggregate( [     
+  { $match: { "relationships.person": { $ne: null } } },     
+  { $project: { relationships: 1, name: 1, _id: 0 } },     
+  { $unwind: "$relationships" },
+  {$match: {'relationships.person.permalink': 'josh-stein'} },     
+  { $group: {         
+    _id: "$relationships.person",  
+    companies: {$addToSet: '$name' }
+  } },     
+  { $project: { num: { $size: '$companies'} } }
+] ).pretty()
+```
+
+
+###### 6.2
+```
+db.grades.aggregate( [
+  {$unwind: '$scores'} ,
+  {$match: {$or: [{'scores.type': 'homework'}, {'scores.type': 'exam'} ] }  },
+  {$group: {
+    _id: {'student_id': '$student_id', 'class_id': '$class_id'},
+    avgStudent: { $avg: '$scores.score'}
+    } }  
+] ).pretty()
+```
+
+```
+db.grades.aggregate( [
+  {$unwind: '$scores'} ,
+  {$match: {$or: [{'scores.type': 'homework'}, {'scores.type': 'exam'} ] }  },
+  {$group: {
+    _id: {'student_id': '$student_id', 'class_id': '$class_id'},
+    avgStudent: { $avg: '$scores.score'}
+    } },
+  {$group: {
+    _id: {'class_id': '$_id.class_id'},
+    avgClass: {$avg: '$avgStudent'}
+    } } ,
+  {$sort: {avgClass: -1}}
+] ).pretty()
+```
+
+###### 6.3
+
+```
+db.companies.aggregate([
+  {$project: {
+    _id:0,
+    'founded_year': 1,
+    'funding_rounds.raised_amount': 1,
+    funding_size: {$size: '$funding_rounds'}
+  }},
+  {$match: {$and: [
+    {'founded_year': 2004},
+    {funding_size: {$gte: 5}}
+    ]}}
+]).pretty()
+
+```
+
+```
+db.companies.aggregate([
+  {$match: {'founded_year': 2004}},
+  {$project: {
+    _id:0,
+    'founded_year': 1,
+    'funding_rounds.raised_amount': 1,
+    funding_size: {$size: '$funding_rounds'}
+  }},
+  {$match: {funding_size: {$gte: 5}}}
+]).pretty()
+
+```
+Solution: 
+```
+db.companies.aggregate([
+  {$match: {'founded_year': 2004}},
+  {$project: {
+    _id:0,
+    'name': 1,
+    'funding_rounds.raised_amount': 1,
+    funding_size: {$size: '$funding_rounds'}
+  }},
+  {$match: {funding_size: {$gte: 5}}},
+  {$unwind: '$funding_rounds'},
+  {$group: {
+    _id: {'company': '$name'},
+    funding_average: {$avg: '$funding_rounds.raised_amount'}
+    }},
+  {$sort: {funding_average: 1}}
+]).pretty()
+
+```
