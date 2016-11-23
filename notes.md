@@ -487,7 +487,28 @@ db.companies.aggregate( [
   { $project: { num: { $size: '$companies'} } }
 ] ).pretty()
 ```
+Official Solution:
 
+```
+db.companies.aggregate([
+    { $project: { relationships: 1, _id: 0, name : 1, permalink: 1 } },
+    { $unwind: "$relationships" },
+    { $group: {
+        _id: { person: "$relationships.person" },
+        gross_companies: { $push : "$permalink" },
+        unique_companies: { $addToSet : "$permalink" }
+    } },
+    { $project: {
+        _id: 0,
+        person: "$_id.person",
+        gross_companies: 1,
+        unique_companies: 1,
+        unique_number_of_companies: { $size: "$unique_companies" },
+        gross_number_of_companies: { $size: "$gross_companies" }
+    } },
+    { $sort: { unique_number_of_companies: -1 } }
+]).pretty()
+```
 
 ###### 6.2
 ```
@@ -510,11 +531,22 @@ db.grades.aggregate( [
     avgStudent: { $avg: '$scores.score'}
     } },
   {$group: {
-    _id: {'class_id': '$_id.class_id'},
+    _id: '$_id.class_id',
     avgClass: {$avg: '$avgStudent'}
     } } ,
   {$sort: {avgClass: -1}}
 ] ).pretty()
+```
+Official Solution:
+
+```
+db.grades.aggregate( [
+{ $unwind : "$scores" },
+{ $match : { "scores.type" : { $ne : "quiz" } } },
+{ $group : { _id : { student_id : "$student_id", class_id : "$class_id" }, avg : { $avg : "$scores.score" } } },
+{ $group : { _id : "$_id.class_id", avg : { $avg : "$avg" } }},
+{ $sort : { "avg" : -1 } },
+{ $limit : 5 } ] )
 ```
 
 ###### 6.3
@@ -548,7 +580,7 @@ db.companies.aggregate([
 ]).pretty()
 
 ```
-Solution: 
+Solution:
 ```
 db.companies.aggregate([
   {$match: {'founded_year': 2004}},
@@ -568,3 +600,181 @@ db.companies.aggregate([
 ]).pretty()
 
 ```
+
+Official Solution:
+
+```
+db.companies.aggregate([
+    { $match: { founded_year: 2004 } },
+    { $project: {
+        _id: 0,
+        name: 1,
+        funding_rounds: 1,
+        num_rounds: { $size: "$funding_rounds" }
+    } },
+    { $match: { num_rounds: { $gte: 5 } } },
+    { $project: {
+        name: 1,
+        avg_round: { $avg: "$funding_rounds.raised_amount" }
+        } },
+    { $sort: { avg_round: 1 } }
+]).pretty()
+```
+**$avg can be used inside $project too!!!!**
+
+# Week 7. Application Engineering
+
+#### Write concern
+
+In the server, where MongoDB is running, there are several parts: CPU is running the Mongod program. And there's memory, and inside the server, there is this persistent disk.
+
+In Memory there are 2 structures:  
+1. The database is mostly writing to memory, in WiredTiger for example, there'll be a cache of pages inside memory that are periodically written and read from disk, depending on memory pressure.
+
+2. The journal: a log of every single thing that the database processes. Every single write the database processes. And when you do a write to the database, an update, it also writes to this journal.
+
+But the data is only considered to be persistent when written to disk.
+
+So when you do an update, you're going to contact via the network --via a TCP connection-- this server. And the server it's going to write it into the memory pages. But they may not write to disk for quite a while. It's also going to simultaneously write this update into the journal.
+
+Now, by default in the driver, when you do an update, we wait for a response. It's an acknowledged update or an acknowledged insert. **But we don't wait for the journal to be written to disk.** The journal might not be written to disk for a while.
+
+The value that represents-- whether we're going to wait for this write to be acknowledged by the server-- is called w. And by default, it's 1, which means wait for this server to respond to my write.
+
+But, by default, j equals false. And j, which stands for journal, represents whether or not we wait for this journal to be written to disk before we continue.
+
+The implications are that when you do an update or an insert into MongoDB, you're really doing an operation in memory, and not necessarily to disk, which means, it's very fast. And then, periodically, the journal gets written out to disk. It might be every few seconds that it gets written out to disk.
+
+But during this window of vulnerability when the data has been written into the server's memory, into the pages, but the journal has not yet been persisted to disk, if the server crashed, you could lose the data.
+
+#### Network Errors
+
+Even if you are running Mongo in a very conservative way (w=1, j=True), you might not receive a response. This doesn't necessarily mean that the insert or update wasn't written to disk. A network error could have happened.
+
+If you get an error and your not sure if it was written, if the operation is idempotent, you can try it again without problem. But if the operation is not idempotent, like an update with $inc, that's a problem.
+
+#### Replication
+1. Availability. If one node goes down you'll still be able to use the system
+2. Fault tolerance. If the primary node goes down, how do we make sure that we don't lose our data between the backups
+
+A replica set is a set of MongoDB nodes that act together and all mirror each other in terms of the data. Theres one primary and the others are secondary, but that's dynamic. Data written to the primary will be asynchronously replicate to the secondaries. If the primary goes down, the remaining nodes will perform an election to elect the new primary.
+The minimun number of servers is 3.
+
+#### Types of replica set nodes
+1. Regular. Has the data and can become primary
+2. Arbiter. It's there just for voting purposes. No data on it.
+3. Delayed. It can participate in the voting but it can not became a primary node and to achieve this, its priority is set to 0.
+4. Hidden. Never the primary, can participate in the elections. Used for analytics.
+
+Every node has one vote.
+
+#### Write consistency
+The writes must go to the primary but the reads don't, they can go to the secondaries.
+But if you write and read to primary, you get strong consistency between reads and writes.
+
+#### Creating a replica set
+To create a replica set in one computer we use different ports so they don't conflict with each other
+
+Script: create_replica_set.sh
+
+```
+#!/usr/bin/env bash
+
+mkdir -p /data/rs1 /data/rs2 /data/rs3
+mongod --replSet m101 --logpath "1.log" --dbpath /data/rs1 --port 27017 --oplogSize 64 --fork --smallfiles
+mongod --replSet m101 --logpath "2.log" --dbpath /data/rs2 --port 27018 --oplogSize 64 --smallfiles --fork
+mongod --replSet m101 --logpath "3.log" --dbpath /data/rs3 --port 27019 --oplogSize 64 --smallfiles --fork
+```
+
+Using #!/usr/bin/env NAME makes the shell search for the first match of NAME in the $PATH environment variable. It can be useful if you aren't aware of the absolute path or don't want to search for it.
+
+The script first creates 3 new directories and then it's going to start 3 mongod instances. It has to declare that each one is part of the same replica set, in this case called m101.
+
+To specify a dbPath for mongod to use as a data directory, use the --dbpath option.
+
+Then we define the 3 ports, one for each mongod
+
+To run a mongod process as a daemon (i.e. fork), and write its output to a log file, use the --fork and --logpath options.
+
+daemon: The conventional name for a background, non-interactive process.
+
+--fork allows it to return, and that way, we don't have to run each mongod on its own shell.
+
+After running `bash < create_replica_set.sh` we get 3 servers running, but they're not initialized yet to know about each other. To tie them together we have to give a command inside the mongo shell
+
+init_replica.js:
+
+```
+config = { _id: "m101", members:[
+          { _id : 0, host : "localhost:27017"},
+          { _id : 1, host : "localhost:27018"},
+          { _id : 2, host : "localhost:27019"} ]
+};
+
+rs.initiate(config);
+rs.status();
+```
+To connect a mongo shell we must specify the port, because now we have 3 mongo servers running.
+If we type: `mongo --port 27017` we just connect to the shell
+We have to type `mongo --port 27017 < init_replica.js` to initialize the replica set
+
+If we type: `mongo --port 27017` again, now we get `m101:PRIMARY>`
+
+If we type: `mongo --port 27018` again, now we get `m101:SECONDARY>`
+
+With `rs.status()` we get the configuration file for this replica set
+
+You can't query secondary by default, in order to allow it: `rs.slaveOk()`
+
+#### Replication internals
+Each replica in the set has inside it an oplog, that is kept in sync with mongo.
+The secondaries are going to be constantly reading the oplog of the primary.
+
+`ps -ef | grep mongod` shows us the processes that are running, in this case, our 3 mongod
+
+If we connect to a primary node, and type `use local`, `show collections`, we can see that there's an oplog.rs collections. To see what's inside: `db.oplog.rs.find().pretty()`
+
+The oplog is a capped collection, which means that it's going to roll off after a certain amount of time. And so you need to have a big enough oplog to be able to deal with periods where the secondary can't see the primary. And how large that oplog is going to be is going to depend on how long you might expect there to be a bifurcation in the network and also how much data you're writing, how fast is the oplog growing.
+
+So in a very fast-moving system, you might need a very large oplog. But in a smaller system, which isn't moving very fast where there aren't very many network partitions, you won't need a very large oplog to make sure that it can always see the oplog.
+
+If the oplog rolls over and the secondary can't get to the primary's oplog, you can still re-sync the secondary, but he has to read the entire database, which is much, much slower.
+
+And the other thing to note about the oplog is that this oplog uses this statement-based approach, where these are actually MongoDB documents. And it doesn't matter which storage engine you're using, or even which version of MongoDB you're running, to some extent. And so you can have mixed mode replica sets.
+
+For instance, you can have a WiredTiger secondary and an mmap primary. And in fact, this is one of the features that would allow you to do upgrades. Because if you want to do a rolling upgrade of the system, you can do it by upgrading parts of it at a time and then having, let's say, a 30 primary replicating itself to an older secondary. And then switch it around, and eventually all the nodes get upgraded.
+
+##### Elections
+We're going to kill a mongod to see how fast a new primary is elected.
+We run `ps -ef | grep mongod` to see in which process is the PRIMARY running.
+And we kill it: `kill 2382`
+Then we can see how a Secondary has turn into a primary.
+
+#### Failover and rollback
+
+
+#### Connecting to a replica set from node.js
+
+You give the driver a connection string, with the hostnames and the ports you want to connect to. Or you could give the name and port of a single node and the driver will automatically detect that it's a replica set and discover the rest of the nodes.
+
+Another way to start a replica set (without script):
+
+1. Create `/data/s1` `/data/s2` and `/data/s3` directories
+
+2. Type
+```
+mongod --port 30001 --replSet repl_set --dbpath /data/s1
+mongod --port 30002 --replSet repl_set --dbpath /data/s2
+mongod --port 30003 --replSet repl_set --dbpath /data/s3
+```
+in different shells
+
+3. In another shell, connect to mongo in 3001  
+`mongo localhost:30001`  
+`rs.status()` gives us an error    
+`rs.initiate()`  
+`rs.add("Esperanzas-MacBook-Pro.local:30002")`  
+`rs.add("Esperanzas-MacBook-Pro.local:30003")`  
+`rs.status()`  
+
+#### 
