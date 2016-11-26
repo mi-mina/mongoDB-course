@@ -56,12 +56,11 @@ function ItemDAO(database) {
         pipeline.push({$group: {_id: '$category', num: {$sum: 1}}});
 
         var itemCollection = this.db.collection('item', function(err, db){
-          // assert.equal(err, null);
+          assert.equal(null, err);
 
           db.aggregate(pipeline, function(err, categories){
-            assert.equal(err, null);
+            assert.equal(null, err);
 
-            console.log(categories);
             var numItems = 0;
 
             for (var i = 0; i < categories.length; i++){
@@ -71,48 +70,17 @@ function ItemDAO(database) {
             var category = {_id: 'All', num: numItems};
 
             categories.push(category);
-            categories.sort();
+            categories.sort(function(a,b){
+              if(a._id < b._id) return -1;
+              if(a._id > b._id) return 1;
+              return 0;
+            });
 
-            console.log(categories);
             callback(categories);
 
           });
-
         });
-
-
-
-
-        // var categories = [];
-        // var category = {
-        //     _id: "All",
-        //     num: 9999
-        // };
-        //
-        // categories.push(category)
-
-        // TODO-lab1A Replace all code above (in this method).
-
-        // TODO Include the following line in the appropriate
-        // place within your code to pass the categories array to the
-        // callback.
-
     }
-
-      // db.collection(collection, (err, coll) => {
-      //   coll.aggregate(pipeline, options, (err, docs) => {
-      //     if (docs.length > 0) {
-      //       for (let i in docs) {
-      //         console.log(JSON.stringify(docs[i]));
-      //       }
-      //     }
-      //     db.close();
-      //   }
-      // }
-
-
-
-
 
     this.getItems = function(category, page, itemsPerPage, callback) {
         "use strict";
@@ -138,19 +106,25 @@ function ItemDAO(database) {
          * than you do for other categories.
          *
          */
-
-        var pageItem = this.createDummyItem();
-        var pageItems = [];
-        for (var i=0; i<5; i++) {
-            pageItems.push(pageItem);
+        var pipeline = [];
+        if (category != 'All') {
+          pipeline.push({$match: {category: category}});
         }
 
-        // TODO-lab1B Replace all code above (in this method).
+        pipeline.push({$sort: {_id: 1}});
+        pipeline.push({$skip: page * 5});
+        pipeline.push({$limit: 5});
 
-        // TODO Include the following line in the appropriate
-        // place within your code to pass the items for the selected page
-        // to the callback.
-        callback(pageItems);
+        var coll = this.db.collection('item', function(err, db){
+          assert.equal(null, err);
+
+          db.aggregate(pipeline, function(err, pageItems){
+            assert.equal(null, err);
+
+            callback(pageItems);
+          });
+
+        });
     }
 
 
@@ -174,9 +148,22 @@ function ItemDAO(database) {
          *
          */
 
-         // TODO Include the following line in the appropriate
-         // place within your code to pass the count to the callback.
-        callback(numItems);
+        var pipeline = [];
+        if (category != 'All') {
+          pipeline.push({$match: {category: category}});
+        }
+
+        var coll = this.db.collection('item', function(err, db){
+          assert.equal(null, err);
+
+          db.aggregate(pipeline, function(err, categoryItems){
+            assert.equal(null, err);
+              numItems = categoryItems.length;
+              callback(numItems);
+          });
+
+        });
+
     }
 
 
@@ -207,18 +194,21 @@ function ItemDAO(database) {
          *
          */
 
-        var item = this.createDummyItem();
-        var items = [];
-        for (var i=0; i<5; i++) {
-            items.push(item);
-        }
+        var pipeline = [];
+        pipeline.push({$match: {$text: {$search: query}}});
+        pipeline.push({$sort: {_id: 1}});
+        pipeline.push({$skip: page * 5});
+        pipeline.push({$limit: 5});
 
-        // TODO-lab2A Replace all code above (in this method).
+        var coll = this.db.collection('item', function(err, db){
+          assert.equal(null, err);
 
-        // TODO Include the following line in the appropriate
-        // place within your code to pass the items for the selected page
-        // of search results to the callback.
-        callback(items);
+          db.aggregate(pipeline, function(err, items){
+            assert.equal(null, err);
+            callback(items);
+          });
+
+        });
     }
 
 
@@ -240,7 +230,18 @@ function ItemDAO(database) {
         * simply do this in the mongo shell.
         */
 
-        callback(numItems);
+        var pipeline = [];
+        pipeline.push({$match: {$text: {$search: query}}});
+
+        var coll = this.db.collection('item', function(err, db){
+          assert.equal(null, err);
+
+          db.aggregate(pipeline, function(err, categoryItems){
+            assert.equal(null, err);
+              numItems = categoryItems.length;
+              callback(numItems);
+          });
+        });
     }
 
 
@@ -257,14 +258,17 @@ function ItemDAO(database) {
          *
          */
 
-        var item = this.createDummyItem();
+         var pipeline = [];
+         pipeline.push({$match: {_id: itemId}});
 
-        // TODO-lab3 Replace all code above (in this method).
+         var coll = this.db.collection('item', function(err, db){
 
-        // TODO Include the following line in the appropriate
-        // place within your code to pass the matching item
-        // to the callback.
-        callback(item);
+           db.aggregate(pipeline, function(err, item){
+             assert.equal(null, err);
+             console.log(item[0]);
+             callback(item[0]);
+           });
+         });
     }
 
 
@@ -302,15 +306,14 @@ function ItemDAO(database) {
             date: Date.now()
         }
 
-        // TODO replace the following two lines with your code that will
-        // update the document with a new review.
-        var doc = this.createDummyItem();
-        doc.reviews = [reviewDoc];
+        var coll = this.db.collection('item', function(err, db){
+          assert.equal(null, err);
 
-        // TODO Include the following line in the appropriate
-        // place within your code to pass the updated doc to the
-        // callback.
-        callback(doc);
+          db.findAndModify({_id: itemId}, [], {$push: {reviews: reviewDoc}}, {}, function(err, doc){
+            assert.equal(null, err);
+            callback(doc);
+          });
+        });
     }
 
 
