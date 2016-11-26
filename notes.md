@@ -777,4 +777,39 @@ in different shells
 `rs.add("Esperanzas-MacBook-Pro.local:30003")`  
 `rs.status()`  
 
-#### 
+####
+
+
+
+
+
+
+
+```
+const employees_group = {
+  _id: { year: "$founded_year" },
+  avg_employees: { $avg: "$number_of_employees" }
+};
+
+const pipeline = [];
+pipeline.push( { $match : { "number_of_employees" : { $exists: true, $gt: 0 } } });
+pipeline.push({ $group: employees_group });
+pipeline.push({ $sort: { "avg_employees": -1 } });
+
+// connect database
+MongoClient.connect(url, (err, db) => {
+  // get collection object from database
+  db.collection(collection, (err, coll) => {
+    // aggregate from collection
+    coll.aggregate(pipeline, options, (err, docs) => {
+      // iterate resulting documents
+      if (docs.length > 0) {
+        for (let i in docs) {
+          console.log(JSON.stringify(docs[i]));
+        }
+      }
+      db.close();
+    }
+  }
+});
+```

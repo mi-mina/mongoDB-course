@@ -52,21 +52,66 @@ function ItemDAO(database) {
         *
         */
 
-        var categories = [];
-        var category = {
-            _id: "All",
-            num: 9999
-        };
+        var pipeline = [];
+        pipeline.push({$group: {_id: '$category', num: {$sum: 1}}});
 
-        categories.push(category)
+        var itemCollection = this.db.collection('item', function(err, db){
+          // assert.equal(err, null);
+
+          db.aggregate(pipeline, function(err, categories){
+            assert.equal(err, null);
+
+            console.log(categories);
+            var numItems = 0;
+
+            for (var i = 0; i < categories.length; i++){
+              numItems = numItems + categories[i].num;
+            }
+
+            var category = {_id: 'All', num: numItems};
+
+            categories.push(category);
+            categories.sort();
+
+            console.log(categories);
+            callback(categories);
+
+          });
+
+        });
+
+
+
+
+        // var categories = [];
+        // var category = {
+        //     _id: "All",
+        //     num: 9999
+        // };
+        //
+        // categories.push(category)
 
         // TODO-lab1A Replace all code above (in this method).
 
         // TODO Include the following line in the appropriate
         // place within your code to pass the categories array to the
         // callback.
-        callback(categories);
+
     }
+
+      // db.collection(collection, (err, coll) => {
+      //   coll.aggregate(pipeline, options, (err, docs) => {
+      //     if (docs.length > 0) {
+      //       for (let i in docs) {
+      //         console.log(JSON.stringify(docs[i]));
+      //       }
+      //     }
+      //     db.close();
+      //   }
+      // }
+
+
+
 
 
     this.getItems = function(category, page, itemsPerPage, callback) {
